@@ -4,8 +4,8 @@ var Type = require('type-of-is');
 var assert = require('assert');
 
 // Set those:
-apiTitle = "Example API";
-apiURL = "api.example.com";
+apiTitle = "Threema API";
+apiURL = "api.threema.ch";
 apiSchemes = ["https"];
 
 inputFile = process.argv[2];
@@ -25,7 +25,7 @@ fs.readFile(inputFile, 'utf8', function (err,data) {
 	// For each request in the HAR file...
 	for (var i = 0, len = entries.length; i < len; i++) {
 		entry = entries[i];
-		
+
 		pathname = url.parse(entry.request.url).pathname;
 		method = entry.request.method.toLowerCase();
 		status = entry.response.status*1;
@@ -36,25 +36,25 @@ fs.readFile(inputFile, 'utf8', function (err,data) {
 		if(entry.request.postData) {
 			properties = json2swaggerProperties(entry.request.postData.text, '');
 		}
-		
+
 		// have we already processed a request for this path?
 		if(paths[pathname]) {
 			// TODO: Support more than two different JSON paramter sets per endpoint?
 			if(method == "post") {
 				try {
 					// check if the request is equal to the one already on file
-					assert.deepEqual(definitions[name + "Request"].properties,properties);
+					assert.notDeepEqual(definitions[name + "Request"].properties,properties);
 					// We already have this path but the request JSON is different this time.
 					// This is weird API design but has been observed in the wild.
 					// It needs manual work after code generation, because SWAGGER
 					// can not model this properly.
 					// Removing the "Stage2" suffix of all request URLs should be enough though.
 					pathname = pathname + "Stage2";
-					console.log("WARNING: This API is weird! Same endpoint accepts JSON objects of different structure.")
+					console.error("WARNING: This API is weird! Same endpoint accepts JSON objects of different structure.")
 				} catch(err) {
-					// JSON is the same as before 
+					// JSON is the same as before
 					// so no need to do all this again, go on to the next entry
-					continue;
+						continue;
 				}
 			} else {
 				// no POST data and the path is the same
@@ -63,7 +63,7 @@ fs.readFile(inputFile, 'utf8', function (err,data) {
 			}
 		}
 		name = pathname.split('/').pop()
-		
+
 
 		// Construct a swagger "path" from the request data
 		var statusDescriptionCont = {};
@@ -90,12 +90,12 @@ fs.readFile(inputFile, 'utf8', function (err,data) {
 							}
 					]
 		}
-		
-		
+
+
 
 		// The response JSON description is refrenced regardless of request type
 		pathnameCont[method]["responses"][status]["schema"] = {"$ref": "#/definitions/" + name + "Response"}
-		
+
 		// insert it in the tree
 		paths[pathname] = pathnameCont;
 
@@ -106,14 +106,14 @@ fs.readFile(inputFile, 'utf8', function (err,data) {
 				"properties": properties
 			}
 		}
-		
+
 		// Support base64 encoded responses
 		if(entry.response.content.encoding == "base64") {
 			response = new Buffer(entry.response.content.text, 'base64').toString("ascii");
 		} else {
 			response = entry.response.content.text;
 		}
-		
+
 		// build the response definition
 		definitions[name + "Response"] = {
 			type: "object",
@@ -121,7 +121,7 @@ fs.readFile(inputFile, 'utf8', function (err,data) {
 		}
 	}
 
-	
+
 	template = {
 	    "swagger": "2.0",
 	    "info": {
